@@ -9,7 +9,7 @@ use Tie::Watch;
 # plain scalars, arrays, or hashes.  Do *NOT* Watch Tk widgets!  But Watch does
 # work OK with Tk otherwise.  First, sample Watch runs are demonstrated, then, 
 # if you remove the __END__ statement, a Tk window appears where you can type
-# values for a Watchd scalar, $foo.
+# values for a Watched scalar, $foo.
 
 my $foo;			# Watch variables
 my @foo;
@@ -26,16 +26,18 @@ my $callback = sub {
 
     # Callback to uppercase write values.
 
-    my($op, $val, $new_val, @args) = @ARG;
-    print "'$op' callback:  val=", ($val ? "'$val'" : 'undefined'),
-        ", new_val=", ($new_val ? "'$new_val'" : 'undefined'),
-        ", args=@args!\n";
+    my($watch, $op, $val, $new_val, $key, @args) = @ARG;
+    print "'$op' on $watch:\n",
+        "  val    =", (defined $val     ? "'$val'" :     'undefined'), "\n",
+        "  new_val=", (defined $new_val ? "'$new_val'" : 'undefined'), "\n",
+        "  key    =", (defined $key     ? "'$key'" :     'undefined'), "\n",
+        "  args   =@args\n";
     return ($op =~ /r/ ? $val : uc $new_val);
 };
 
 # Watch Scalar ****************************************************************
 
-print "\n*** Test Watch Scalar:\n";
+print "\n********** Test Watch Scalar:\n";
 chomp($date = `date`);
 $foo='frog';
 $w_scalar = Tie::Watch->new(
@@ -48,11 +50,12 @@ $foo = "hello scalar";
 print $foo, "\n";
 %vinfo = $w_scalar->Info;
 print "vinfo:\n", join("\n", @{$vinfo{legible}}), "\n";
+#$w_scalar->Delete;
 sleep 1;
 
 # Watch Array *****************************************************************
 
-print "\n*** Test Watch Array:\n";
+print "\n********** Test Watch Array:\n";
 chomp($date = `date`);
 $w_array = Tie::Watch->new(
     -variable  => \@foo,
@@ -69,7 +72,7 @@ sleep 1;
 
 # Watch Hash ******************************************************************
 
-print "\n*** Test Watch Hash:\n";
+print "\n********** Test Watch Hash:\n";
 chomp($date = `date`);
 $w_hash = Tie::Watch->new(
     -variable  => \%foo,

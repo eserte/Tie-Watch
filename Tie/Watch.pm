@@ -29,28 +29,32 @@ $DEBUG = 0;
  code can pass the value of the variable through unchanged, or modify it on
  the fly.  You cannot have more than one callback per Perl variable, so it must
  be coded to handle read and write operations if 'rw' mode is selected.  It is
- passed at least three arguments:
+ passed at least five arguments:
 
- my $callback = sub {
+my $callback = sub {
 
-     # Callback to uppercase write values.
+    # Callback to uppercase write values.
 
-     my($op, $val, $new_val, @args) = @ARG;
-     print "op=$op, val=", ($val ? "'$val'" : 'undefined'),
-         ", new_val=", ($new_val ? "'$new_val'" : 'undefined'),
-         ", args=@args!\n";
-     return ($op =~ /r/ ? $val : uc $new_val);
- };
+    my($watch, $op, $val, $new_val, $key, @args) = @ARG;
+    print "'$op' on $watch:\n",
+        "  val    =", (defined $val     ? "'$val'" :     'undefined'), "\n",
+        "  new_val=", (defined $new_val ? "'$new_val'" : 'undefined'), "\n",
+        "  key    =", (defined $key     ? "'$key'" :     'undefined'), "\n",
+        "  args   =@args\n";
+    return ($op =~ /r/ ? $val : uc $new_val);
+};
 
- $op is either 'r' or 'w', $val is the variable's current value, $new_val is
- the variable's new value if the operation is a write (else it's the same as
- $val), and @args is a list of optional arguments you (may have) provided to 
+ $watch is a reference pointing to the watched variable,  $op is either 'r' or
+ 'w', $val is the variable's current value, $new_val is the variable's new
+ value if the operation is a write (else it's the same as $val), $key is
+ undef() for a scalar variable, else the index/key for an array/hash, and 
+ @args is a list of optional arguments you (may have) provided to 
  the Tie::Watch->new() method. The return value from the callback becomes the
  variable's new value.  
 
  This example simply uppercases $new_val on a write.  To implement a read-only
- variable simply return $val on a write.  Note that one callback works for
- scalar, array or hash variables.
+ variable simply return $val on a write.  Note that one callback can work for
+ one or more scalar, array or hash variables.
 
 =head1 METHODS
 
@@ -243,24 +247,26 @@ sub DESTROY {
 
 sub FETCH {
     my($self) = @ARG;
-    my $val = $self->{value};
+    my($watch, $val) = ($self->{watch}, $self->{value});
     my $new_val = $val;
-    print "WatchScalar: $self->{watch} returned ",
+    print "WatchScalar: $watch returned ",
 	        $self->Say($val), ".\n" if $Tie::Watch::DEBUG;
     if ($self->{'op'} =~ /r/) {
-	$new_val = &{$self->{cb}} ('r', $val, $new_val, @{$self->{args}});
+	$new_val = &{$self->{cb}} ($watch, 'r', $val, $new_val, undef,
+				   @{$self->{args}});
     }
     return $self->{value} = $new_val;
 }
 
 sub STORE {
     my($self, $new_val) = @ARG;
-    my $val = $self->{value};
-    print "WatchScalar: $self->{watch} changed from ",
+    my($watch, $val) = ($self->{watch}, $self->{value});
+    print "WatchScalar: $watch changed from ",
 	        $self->Say($val), " to ",
 	        $self->Say($new_val), ".\n" if $Tie::Watch::DEBUG;
     if ($self->{'op'} =~ /w/) {
-	$new_val = &{$self->{cb}} ('w', $val, $new_val, @{$self->{args}});
+	$new_val = &{$self->{cb}} ($watch, 'w', $val, $new_val, undef,
+				   @{$self->{args}});
     }
     return $self->{value} = $new_val;
 }
@@ -296,24 +302,26 @@ sub DESTROY {
 
 sub FETCH {
     my($self, $key) = @ARG;
-    my $val = $self->{ptr}->[$key];
+    my($watch, $val) = ($self->{watch}, $self->{ptr}->[$key]);
     my $new_val = $val;
-    print "WatchArray: $self->{watch}", "[$key] returned ",
+    print "WatchArray: $watch", "[$key] returned ",
 	        $self->Say($val), ".\n" if $Tie::Watch::DEBUG;
     if ($self->{'op'} =~ /r/) {
-	$new_val = &{$self->{cb}} ('r', $val, $new_val, @{$self->{args}});
+	$new_val = &{$self->{cb}} ($watch, 'r', $val, $new_val, $key,
+				   @{$self->{args}});
     }
     return $self->{ptr}->[$key] = $new_val;
 }
 
 sub STORE {
     my($self, $key, $new_val) = @ARG;
-    my $val = $self->{ptr}->[$key];
-    print "WatchArray: $self->{watch}", "[$key] changed from ",
+    my($watch, $val) = ($self->{watch}, $self->{ptr}->[$key]);
+    print "WatchArray: $watch", "[$key] changed from ",
 	        $self->Say($val), " to ",
 	        $self->Say($new_val), ".\n" if $Tie::Watch::DEBUG;
     if ($self->{'op'} =~ /w/) {
-	$new_val = &{$self->{cb}} ('w', $val, $new_val, @{$self->{args}});
+	$new_val = &{$self->{cb}} ($watch, 'w', $val, $new_val, $key,
+				   @{$self->{args}});
     }
     return $self->{ptr}->[$key] = $new_val;
 }
@@ -356,12 +364,13 @@ sub EXISTS {
 
 sub FETCH {
     my($self, $key) = @ARG;
-    my $val = $self->{ptr}->{$key};
+    my($watch, $val) = ($self->{watch}, $self->{ptr}->{$key});
     my $new_val = $val;
-    print "WatchHash: $self->{watch}", "{$key} returned ",
+    print "WatchHash: $watch", "{$key} returned ",
 	        $self->Say($val), ".\n" if $Tie::Watch::DEBUG;
     if ($self->{'op'} =~ /r/) {
-	$new_val = &{$self->{cb}} ('r', $val, $new_val, @{$self->{args}});
+	$new_val = &{$self->{cb}} ($watch, 'r', $val, $new_val, $key,
+				   @{$self->{args}});
     }
     return $self->{ptr}->{$key} = $new_val;
 }
@@ -378,12 +387,13 @@ sub NEXTKEY {
 
 sub STORE {
     my($self, $key, $new_val) = @ARG;
-    my $val = $self->{ptr}->{$key};
-    print "WatchHash: $self->{watch}", "{$key} changed from ",
+    my($watch, $val) = ($self->{watch}, $self->{ptr}->{$key});
+    print "WatchHash: $watch", "{$key} changed from ",
 	        $self->Say($val), " to ",
 	        $self->Say($new_val), ".\n" if $Tie::Watch::DEBUG;
     if ($self->{'op'} =~ /w/) {
-	$new_val = &{$self->{cb}} ('w', $val, $new_val, @{$self->{args}});
+	$new_val = &{$self->{cb}} ($watch, 'w', $val, $new_val, $key,
+				   @{$self->{args}});
     }
     return $self->{ptr}->{$key} = $new_val;
 }
