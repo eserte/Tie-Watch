@@ -125,6 +125,7 @@ if ($demos =~ /h/) {
     print "keys=", join(', ', keys %foo), ".\n";
     print "\n";
 }
+__END__
 
 if ($demos =~ /t/) {
     die "Cannot run Tk demo without running scalar demo too." if not 

@@ -1,4 +1,4 @@
-$Tie::Watch::VERSION = '0.96';
+$Tie::Watch::VERSION = '0.97';
 
 package Tie::Watch;
 
@@ -160,9 +160,13 @@ Stephen O. Lidie <lusol@Lehigh.EDU>
  lusol@Lehigh.EDU, LUCC, 96/12/25
  . Version 0.96, release two inner references detected by Perl 5.004.
 
+ lusol@Lehigh.EDU, LUCC, 97/01/11
+ . Version 0.97, fix Makefile.PL and MANIFEST (thanks Andreas Koenig).
+   Make sure test.pl doesn't fail if Tk isn't installed.
+
 =head1 COPYRIGHT
 
-Copyright (C) 1996 - 1996 Stephen O. Lidie. All rights reserved.
+Copyright (C) 1996 - 1997 Stephen O. Lidie. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.

@@ -1,8 +1,8 @@
 
 				  Tie::Watch
 
-	An object oriented interface to the Perl builtin tie(), that allows a 
-watchpoint to be placed on any Perl variable.  A watchpoint is simply a
+	An object oriented interface to the Perl builtin tie(), that allows
+a watchpoint to be placed on any Perl variable.  A watchpoint is simply a
 callback (subroutine) that is invoked when a variable is accessed.
 
 	The callback can do various things:
@@ -18,8 +18,11 @@ Do:
    make test
    make install
 
+If you have Tk installed, delete the __END__ statement from test.pl and
+execute "test.pl all" to see a Tk watchpoint example.
+
 
 Steve Lidie
 lusol@Lehigh.EDU
 
-96/09/16
+97/01/11
