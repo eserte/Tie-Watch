@@ -1,3 +1,5 @@
+$Tie::Watch::VERSION = '0.96';
+
 package Tie::Watch;
 
 =head1 NAME
@@ -14,6 +16,7 @@ package Tie::Watch;
      -fetch    => [\&fetch, 'arg1', 'arg2', ..., 'argn'],
      -store    => \&store,
      -destroy  => sub {print "Final value=$frog.\n"},
+ }
  %vinfo = $watch->Info;
  $args  = $watch->Args(-fetch);
  $val   = $watch->Fetch;
@@ -151,8 +154,11 @@ Stephen O. Lidie <lusol@Lehigh.EDU>
 =head1 HISTORY
 
  lusol@Lehigh.EDU, LUCC, 96/05/30
- . Original version 1.0 release, based on the Trace module from Hans Mulder,
+ . Original version 0.92 release, based on the Trace module from Hans Mulder,
    and ideas from Tim Bunce.
+
+ lusol@Lehigh.EDU, LUCC, 96/12/25
+ . Version 0.96, release two inner references detected by Perl 5.004.
 
 =head1 COPYRIGHT
 
@@ -176,6 +182,7 @@ sub new {
     # normalize all callbacks and bind the variable to the appropriate package.
 
     my($class, %args) = @ARG;
+    my $version = $Tie::Watch::VERSION;
     my (%arg_defaults) = (
 	-fetch    => [],
 	-store    => [],
@@ -238,17 +245,17 @@ sub Args {
 
     my($self, $callback) = @ARG;
     undef;
-    [(@{$self->{$callback}})[1 .. $#{$self->{$callback}}]] if
+    [@{$self->{$callback}}[1 .. $#{$self->{$callback}}]] if
       defined $self->{$callback}->[1];
 } # end Args
 
 sub Delete {
 
-    # Stop watching a variable by untie()-ing it.
+    # Stop watching a variable by releasing the last reference and untieing it.
 
-    my($self) = @ARG;
-    my $variable = $self->{-variable};
+    my $variable = $_[0]->{-variable};
     my $type = ref $variable;
+    undef $_[0];
     if ($type =~ /SCALAR/) {
 	untie $$variable;
     } elsif ($type =~ /ARRAY/) {
