@@ -1,0 +1,56 @@
+Tie::Watch 0.91 - 96/06/11
+
+Tentative watchpoint package, whose name I swiped from Tim Bunce, who
+says this:
+
+***************************************************************************
+> From: "Stephen O. Lidie" <lusol@turkey.cc.lehigh.edu>
+>
+> I've finally learned my lesson - I'll check out the modules list before
+> I start writing the code.  I have a Trace module, mainly for Perl/Tk, but
+> Tk isn't required.  I changed to name to WatchVar, and then saw that Tim
+> was working on Quick and Watch.
+
+As an 'i'dea I had _years_ ago and I've done nothing with.
+
+> Now if Tie::Watch is all that's required, my current code is essentially
+> in Release format.  But you'll have to explain what Tie::Quick was to
+> do.  Sounds like Tie::Watch would inherit from Tie::Quick, and if that's
+> the case I'll need some more time...
+>
+> How should I proceed?
+
+I'll explain my idea, you can take it (all) from there:
+
+The basic idea was to avoid the need to write a package for the sake
+of a single specialised tie.
+
+        tie $var, 'Tie::Quick',
+                STORE => sub { ...code... },
+                FETCH => '...code...';
+
+Tie::Quick would construct a package dynamically and would arrange for
+it to inherit from the correct Tie::* base class (Tie::StdHash etc).
+
+Tie::Watch would use Tie::Quick but would automatically
+call $obj->SUPER::STORE and SUPER::FETCH before calling your
+code (if any was supplied). If none was supplied then the default
+would be to print a message with a stack trace whenever the
+STORE or FETCH was called.
+
+So,
+        tie $var, Tie::Watch;
+
+would be sufficient to trigger a useful watchpoint on that variable.
+***************************************************************************
+
+
+Please:
+
+ . Is Tie::Watch a proper name?
+ . Is this module functionally equivalent to Tie::Quick and Tie::Watch?
+
+Thanks,
+
+Steve
+
