@@ -1,4 +1,4 @@
-$Tie::Watch::VERSION = '0.99';
+$Tie::Watch::VERSION = '1.0';
 
 package Tie::Watch;
 
@@ -215,9 +215,13 @@ Stephen.O.Lidie@Lehigh.EDU
    Delete() method has been renamed Unwatch() because it conflicts with the
    builtin delete().
 
+ Stephen.O.Lidie@Lehigh.EDU, Lehigh University Computing Center, 99/04/04
+ . Version 1.0, for Perl 5.005_03, update Makefile.PL for ActiveState, and
+   add two examples (one for Perl/Tk).
+
 =head1 COPYRIGHT
 
-Copyright (C) 1996 - 1998 Stephen O. Lidie. All rights reserved.
+Copyright (C) 1996 - 1999 Stephen O. Lidie. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
@@ -230,11 +234,11 @@ use strict;
 use subs qw/normalize_callbacks/;
 use vars qw/@array_callbacks @hash_callbacks @scalar_callbacks/;
 
-@array_callbacks  = (qw/-clear -destroy -extend -fetch -fetchsize -pop -push
-                        -shift -splice -store -storesize -unshift/);
-@hash_callbacks   = (qw/-clear -delete -destroy -exists -fetch -firstkey 
-                        -nextkey -store/);
-@scalar_callbacks = (qw/-destroy -fetch -store/);
+@array_callbacks  = qw/-clear -destroy -extend -fetch -fetchsize -pop -push
+                       -shift -splice -store -storesize -unshift/;
+@hash_callbacks   = qw/-clear -delete -destroy -exists -fetch -firstkey 
+                       -nextkey -store/;
+@scalar_callbacks = qw/-destroy -fetch -store/;
 
 sub new {
 
@@ -539,146 +543,3 @@ sub NEXTKEY  {$_[0]->callback(-nextkey)}
 sub STORE    {$_[0]->callback(-store, $_[1], $_[2])}
 
 1;
-__END__
-#!/usr/local/bin/perl -w
-
-use strict;
-use Tie::Watch;
-use vars '$do_tk';
-BEGIN {
-    $do_tk = 1;
-    eval "use Tk";
-    $do_tk = 0 if $@;
-}
-
-# Complete documentation on Watch is a pod in the module file.  Watch works on
-# plain scalars, arrays, or hashes.  Do *NOT* Watch Tk widgets!  But Watch does
-# work OK with Tk otherwise.
-
-my $demos = 'saht';
-
-my $foo;			# Watch variables
-my @foo;
-my %foo;
-
-my %vinfo;			# variable Watch information
-my $date;			# a changing time
-
-my $w_scalar;			# Watch objects
-my $w_array;
-my $w_hash;
-
-my $fetch_scalar = sub {
-    my($self) = @_;
-    $self->Fetch;
-};
-
-my $store_scalar = sub {
-    my($self, $new_val) = @_;
-    $self->Store(uc $new_val);
-};
-
-my $fetch = sub {
-    my($self, $key) = @_;
-    my $val = $self->Fetch($key);
-    print "In fetch callback, key=$key, val=", $self->Say($val);
-    my $args = $self->Args(-fetch);
-    print ", args=('", join("', '",  @$args), "')" if $args;
-    print ".\n";
-    $val;
-};
-
-my $store = sub {
-    my($self, $key, $new_val) = @_;
-    my $val = $self->Fetch($key);
-    $new_val = uc $new_val;
-    $self->Store($key, $new_val);
-    print "In store callback, key=$key, val=", $self->Say($val), 
-      ", new_val=", $self->Say($new_val);
-    my $args = $self->Args(-store);
-    print ", args=('", join("', '",  @$args), "')" if $args;
-    print ".\n";
-    $new_val;
-};
-
-if ($demos =~ /s/) {
-    chomp($date = `date`); $date = substr $date, 11, 8;
-    $foo='frog';
-    $w_scalar = Tie::Watch->new(
-        -variable => \$foo,
-	-fetch    => $fetch_scalar,
-	-store    => $store_scalar,
-	-destroy  => sub {print "Final value of \$foo=$foo.\n"},
-	-debug    => 1,
-    );
-    $foo = "hello scalar";
-    print "Final value: $foo\n";
-    %vinfo = $w_scalar->Info;
-    print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    $w_scalar->Unwatch if $demos !~ /t/;
-    sleep 1;
-}
-
-if ($demos =~ /a/) {
-    print "\n********** Test Watch Array **********\n";
-    chomp($date = `date`); $date = substr $date, 11, 8;
-    $w_array = Tie::Watch->new(
-        -variable => \@foo,
-	-fetch    => $fetch,
-	-store    => [$store, 'array write', $date],
-    );
-    @foo = ("hello", 'array');
-    my($a, $b) = ($foo[0], $foo[1]);
-    print "Final value: $a $b\n";
-    %vinfo = $w_array->Info;
-    print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    sleep 1;
-}
-
-if ($demos =~ /h/) {
-    print "\n********** Test Watch Hash **********\n";
-    chomp($date = `date`); $date = substr $date, 11, 8;
-    $w_hash = Tie::Watch->new(
-        -variable => \%foo,
-	-fetch    => [$fetch, 'hash read', $date],
-	-store    => $store,			  
-    );
-    %foo = ('k1' => "hello", 'k2' => 'hash ');
-    my($a, $b) = ($foo{k1}, $foo{k2});
-    print "Final value: $a $b\n";
-    %vinfo = $w_hash->Info;
-    print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    foreach (keys %foo) {
-	print "key=$_, value=$foo{$_}.\n";
-    }
-    if (exists $foo{k2}) {
-	print "k2 does exist\n";
-    } else {
-	print "k2 does not exists\n";
-    }
-    delete $foo{k2};
-    if (exists $foo{k2}) {
-	print "k2 does exist\n";
-    } else {
-	print "k2 does not exist\n";
-    }
-    print "keys=", join(', ', keys %foo), ".\n";
-    print "\n";
-}
-
-if ($demos =~ /t/) {
-    die "Cannot run Tk demo if Perl/Tk isn't installed." unless $do_tk;
-    die "Cannot run Tk demo without running scalar demo too." if not defined
-	$w_scalar;
-    die "Cannot run Tk demo unless DISPLAY set." if not defined $ENV{DISPLAY};
-    my $MW = MainWindow->new;
-    my $e = $MW->Entry->pack;
-    $e->insert(0, $foo);
-    $e->bind('<Return>' => sub {$foo = $e->get});
-    $e->focus;
-    my $u = $MW->Button(-text => 'UnWatch $foo', -command => sub {
-	$w_scalar->Unwatch;
-    })->pack;
-    my $l = $MW->Button(-text => 'Quit', -command => \&exit)->pack;
-    &Tk::MainLoop;
-}

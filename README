@@ -18,7 +18,7 @@ Do:
    make test
    make install
 
-If you have Tk installed a short Tk demo will also run.
+You may find the programs in the .../examples directory interesting.
 
 This version supports tied arrays and REQUIRES Perl 5.004_57 or
 higher.  Also, the old Delete() method has been renamed Unwatch()
@@ -29,4 +29,4 @@ BUGS:  not aware of any.
 Steve Lidie
 Stephen.O.Lidie@Lehigh.EDU
 
-98/02/16
+99/04/04

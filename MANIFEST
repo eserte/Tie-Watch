@@ -3,3 +3,5 @@ Makefile.PL
 README
 Watch.pm
 test.pl
+examples/verbose
+examples/tktie
