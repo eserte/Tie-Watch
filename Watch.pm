@@ -1,4 +1,4 @@
-$Tie::Watch::VERSION = '0.98';
+$Tie::Watch::VERSION = '0.99';
 
 package Tie::Watch;
 
@@ -23,15 +23,19 @@ package Tie::Watch;
  $val   = $watch->Fetch;
  print "val=", $watch->Say($val), ".\n";
  $watch->Store('Hello');
- $watch->Delete;
+ $watch->Unwatch;
 
 =head1 DESCRIPTION
 
-This class module binds one or more  subroutines of your devising to a
-Perl  variable.  All   variables  can  have   B<FETCH>, B<STORE>   and
-B<DESTROY>  callbacks.   Additionally,  hashes   can define  B<CLEAR>,
-B<DELETE>,  B<EXISTS>,  B<FIRSTKEY>  and B<NEXTKEY>   callbacks.  With
-Tie::Watch you can:
+This class module binds one or more subroutines of your devising to a
+Perl variable.  All variables can have B<FETCH>, B<STORE> and
+B<DESTROY> callbacks.  Additionally, arrays can define B<CLEAR>, B<EXTEND>,
+B<FETCHSIZE>, B<POP>, B<PUSH>, B<SHIFT>, B<SPLICE>, B<STORESIZE> and
+B<UNSHIFT> callbacks, and hashes can define B<CLEAR>, B<DELETE>, B<EXISTS>,
+B<FIRSTKEY> and B<NEXTKEY> callbacks.  If these term are unfamiliar to you,
+I I<really> suggest you read L<perltie>.
+
+With Tie::Watch you can:
 
  . alter a variable's value
  . prevent a variable's value from being changed
@@ -46,21 +50,28 @@ arguments.  (See examples in the Synopsis, above.)
 Tie::Watch provides default callbacks for any that you fail to
 specify.  Other than negatively impacting performance, they perform
 the standard action that you'd expect, so the variable behaves
-"normally".
+"normally".  Once you override a default callback, perhaps to insert
+debug code like print statements, your callback normally finishes by
+calling the underlying (overridden) method.  But you don't have to!
+
+To map a tied method name to a default callback name simply lowercase
+the tied method name and uppercase its first character.  So FETCH
+becomes Fetch, NEXTKEY becomes Nextkey, etcetera.
 
 Here are two callbacks for a scalar. The B<FETCH> (read) callback does
 nothing other than illustrate the fact that it returns the value to
 assign the variable.  The B<STORE> (write) callback uppercases the
-variable.  In all cases the callback I<must> return the correct read
-or write value.
+variable and returns it.  In all cases the callback I<must> return the
+correct read or write value - typically, it does this by invoking the
+underlying method.
 
  my $fetch_scalar = sub {
-     my($self) = @ARG;
+     my($self) = @_;
      $self->Fetch;
  };
 
  my $store_scalar = sub {
-     my($self, $new_val) = @ARG;
+     my($self, $new_val) = @_;
      $self->Store(uc $new_val);
  };
 
@@ -69,7 +80,7 @@ They do essentially the same thing as the scalar callbacks, but
 provide a little more information.
 
  my $fetch = sub {
-     my($self, $key) = @ARG;
+     my($self, $key) = @_;
      my $val = $self->Fetch($key);
      print "In fetch callback, key=$key, val=", $self->Say($val);
      my $args = $self->Args(-fetch);
@@ -79,7 +90,7 @@ provide a little more information.
  };
 
  my $store = sub {
-     my($self, $key, $new_val) = @ARG;
+     my($self, $key, $new_val) = @_;
      my $val = $self->Fetch($key);
      $new_val = uc $new_val;
      $self->Store($key, $new_val);
@@ -91,8 +102,8 @@ provide a little more information.
      $new_val;
  };
 
-In all cases, the first parameter is a reference to the Watch object.
-You can use this to invoke useful class methods.
+In all cases, the first parameter is a reference to the Watch object,
+used to invoke the following class methods.
 
 =head1 METHODS
 
@@ -119,21 +130,20 @@ Shadowing is on my default.  If you disable shadowing any changes made
 to an array or hash are lost when the watchpoint is deleted.
 
 Specify any of the following relevant callback parameters, in the
-format described above: B<-fetch>, B<-store>, B<-destroy>, B<-clear>,
-B<-delete>, B<-exists>, B<-firstkey>, and/or B<-nextkey>.
+format described above: B<-fetch>, B<-store>, B<-destroy>.
+Additionally for arrays: B<-clear>, B<-extend>, B<-fetchsize>,
+B<-pop>, B<-push>, B<-shift>, B<-splice>, B<-storesize> and
+B<-unshift>.  Additionally for hashes: B<-clear>, B<-delete>,
+B<-exists>, B<-firstkey> and B<-nextkey>.
 
 =item $args = $watch->Args(-fetch);
 
-Return a reference to a list of arguments for the specified callback,
+Returns a reference to a list of arguments for the specified callback,
 or undefined if none.
-
-=item $watch->Delete();
-
-Stop watching the variable.
 
 =item $watch->Fetch();  $watch->Fetch($key);
 
-Return a variable's current value.  $key is required for an array or
+Returns a variable's current value.  $key is required for an array or
 hash.
 
 =item %vinfo = $watch->Info();
@@ -143,19 +153,19 @@ keys:
 
  %vinfo = {
      -variable =>  SCALAR(0x200737f8)
-     -fetch    =>  ARRAY(0x200f8558)
-     -store    =>  ARRAY(0x200f85a0)
-     -destroy  =>  ARRAY(0x200f86cc)
      -debug    =>  '0'
      -shadow   =>  '1'
      -value    =>  'HELLO SCALAR'
+     -destroy  =>  ARRAY(0x200f86cc)
+     -fetch    =>  ARRAY(0x200f8558)
+     -store    =>  ARRAY(0x200f85a0)
      -legible  =>  above data formatted as a list of string, for printing
  }
 
 For array and hash Watch objects, the B<-value> key is replaced with a
 B<-ptr> key which is a reference to the parallel array or hash.
-Additionally, for hashes, there are key/value pairs for the
-hash-specific callback options.
+Additionally, for an array or hash, there are key/value pairs for
+all the variable specific callbacks.
 
 =item $watch->Say($val);
 
@@ -166,6 +176,10 @@ the string "undefined" for undefined values.
 
 Store a variable's new value.  $key is required for an array or hash.
 
+=item $watch->Unwatch();
+
+Stop watching the variable.
+
 =back
 
 =head1 EFFICIENCY CONSIDERATIONS
@@ -173,11 +187,6 @@ Store a variable's new value.  $key is required for an array or hash.
 If you can live using the class methods provided, please do so.  You
 can meddle with the object hash directly and improved watch
 performance, at the risk of your code breaking in the future.
-
-=head1 BUGS
-
-Perl's implementation of tied arrays is incomplete, hence Tie::Watch
-operations on arrays cannot be fully supported.
 
 =head1 AUTHOR
 
@@ -199,19 +208,33 @@ Stephen.O.Lidie@Lehigh.EDU
  Stephen.O.Lidie@Lehigh.EDU, Lehigh University Computing Center, 97/10/03
  . Version 0.98, implement -shadow option for arrays and hashes.
 
+ Stephen.O.Lidie@Lehigh.EDU, Lehigh University Computing Center, 98/02/11
+ . Version 0.99, finally, with Perl 5.004_57, we can completely watch arrays.
+   With tied array support this module is essentially complete, so its been
+   optimized for speed at the expense of clarity - sorry about that. The
+   Delete() method has been renamed Unwatch() because it conflicts with the
+   builtin delete().
+
 =head1 COPYRIGHT
 
-Copyright (C) 1996 - 1997 Stephen O. Lidie. All rights reserved.
+Copyright (C) 1996 - 1998 Stephen O. Lidie. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
 
 =cut
 
+use 5.004_57;
 use Carp;
-use English;
 use strict;
-use subs qw(normalize_callbacks);
+use subs qw/normalize_callbacks/;
+use vars qw/@array_callbacks @hash_callbacks @scalar_callbacks/;
+
+@array_callbacks  = (qw/-clear -destroy -extend -fetch -fetchsize -pop -push
+                        -shift -splice -store -storesize -unshift/);
+@hash_callbacks   = (qw/-clear -delete -destroy -exists -fetch -firstkey 
+                        -nextkey -store/);
+@scalar_callbacks = (qw/-destroy -fetch -store/);
 
 sub new {
 
@@ -220,60 +243,46 @@ sub new {
     # type.  Here we supply defaulted parameter values and then verify them,
     # normalize all callbacks and bind the variable to the appropriate package.
 
-    my($class, %args) = @ARG;
+    my($class, %args) = @_;
     my $version = $Tie::Watch::VERSION;
-    my (%arg_defaults) = (
-	-fetch    => [],
-	-store    => [],
-	-destroy  => [sub {my($self) = @ARG; undef %$self}, undef],
-        -debug    => 0,
-	-shadow   => 1,
-	-clear    => [sub {shift->{ptr} = ()}, undef],
-	'-delete' => [sub {my($self, $key) = @ARG;
-			   delete $self->{-ptr}->{$key}}, undef],
-	'-exists' => [sub {my($self, $key) = @ARG;
-			   exists $self->{-ptr}->{$key}}, undef],
-        -firstkey => [sub {my($self) = @ARG; my $a = keys %{$self->{-ptr}};
-			   return each %{$self->{-ptr}}}, undef],
-	-nextkey  => [sub {my($self) = @ARG; 
-			   return each %{$self->{-ptr}}}, undef],
-    );
+    my (%arg_defaults) = (-debug => 0, -shadow  => 1);
     my $variable = $args{-variable};
-    croak "Tie::Watch: -variable is required." if not defined $variable;
+    croak "Tie::Watch::new(): -variable is required." if not defined $variable;
+
     my($type, $watch_obj) = (ref $variable, undef);
     if ($type =~ /SCALAR/) {
-	$arg_defaults{-fetch} = [\&Tie::Watch::Scalar::Fetch, undef];
-	$arg_defaults{-store} = [\&Tie::Watch::Scalar::Store, undef];
+	@arg_defaults{@scalar_callbacks} = (
+	    [\&Tie::Watch::Scalar::Destroy],  [\&Tie::Watch::Scalar::Fetch],
+	    [\&Tie::Watch::Scalar::Store]);
     } elsif ($type =~ /ARRAY/) {
-	$arg_defaults{-fetch} = [\&Tie::Watch::Array::Fetch, undef];
-	$arg_defaults{-store} = [\&Tie::Watch::Array::Store, undef];
+	@arg_defaults{@array_callbacks}  = (
+	    [\&Tie::Watch::Array::Clear],     [\&Tie::Watch::Array::Destroy],
+	    [\&Tie::Watch::Array::Extend],    [\&Tie::Watch::Array::Fetch],
+	    [\&Tie::Watch::Array::Fetchsize], [\&Tie::Watch::Array::Pop],
+            [\&Tie::Watch::Array::Push],      [\&Tie::Watch::Array::Shift],
+            [\&Tie::Watch::Array::Splice],    [\&Tie::Watch::Array::Store],
+            [\&Tie::Watch::Array::Storesize], [\&Tie::Watch::Array::Unshift]);
     } elsif ($type =~ /HASH/) {
-	$arg_defaults{-fetch} = [\&Tie::Watch::Hash::Fetch, undef];
-	$arg_defaults{-store} = [\&Tie::Watch::Hash::Store, undef];
+	@arg_defaults{@hash_callbacks}   = (
+	    [\&Tie::Watch::Hash::Clear],      [\&Tie::Watch::Hash::Delete],
+	    [\&Tie::Watch::Hash::Destroy],    [\&Tie::Watch::Hash::Exists],
+            [\&Tie::Watch::Hash::Fetch],      [\&Tie::Watch::Hash::Firstkey],
+            [\&Tie::Watch::Hash::Nextkey],    [\&Tie::Watch::Hash::Store]);
     } else {
-	croak "Tie::Watch - not a variable reference.";
+	croak "Tie::Watch::new() - not a variable reference.";
     }
     my(@margs, %ahsh, $args, @args);
-    @margs = grep ! defined $args{$ARG}, keys %arg_defaults;
-    %ahsh = %args;
-    @ahsh{@margs} = @arg_defaults{@margs};
-    my($fetch, $store, $destroy, $debug, $shadow) =
-      @ahsh{-fetch, -store, -destroy, -debug, -shadow};
-    normalize_callbacks($fetch, $store, $destroy);
+    @margs = grep ! defined $args{$_}, keys %arg_defaults;
+    %ahsh = %args;                         # argument hash
+    @ahsh{@margs} = @arg_defaults{@margs}; # fill in missing values
+    normalize_callbacks \%ahsh;
 
     if ($type =~ /SCALAR/) {
-        $watch_obj = tie $$variable, 'Tie::Watch::Scalar', $variable, $fetch,
-	$store, $destroy, $debug, $shadow;
+        $watch_obj = tie $$variable, 'Tie::Watch::Scalar', %ahsh;
     } elsif ($type =~ /ARRAY/) {
-        $watch_obj = tie @$variable, 'Tie::Watch::Array',  $variable, $fetch,
-	$store, $destroy, $debug, $shadow;
+        $watch_obj = tie @$variable, 'Tie::Watch::Array',  %ahsh;
     } elsif ($type =~ /HASH/) {
-        my($clear, $delete, $exists, $firstkey, $nextkey) =
-	  @ahsh{-clear, '-delete', '-exists', -firstkey, -nextkey};
-	normalize_callbacks($clear, $delete, $exists, $firstkey, $nextkey);
-        $watch_obj = tie %$variable, 'Tie::Watch::Hash',   $variable, $fetch,
-	  $store, $destroy, $debug, $shadow, $clear, $delete, $exists,
-	  $firstkey, $nextkey;
+        $watch_obj = tie %$variable, 'Tie::Watch::Hash',   %ahsh;
     }
     $watch_obj;
 
@@ -281,18 +290,53 @@ sub new {
 
 sub Args {
 
-    # Return a reference to a list of callback arguments.
+    # Return a reference to a list of callback arguments, or undef if none.
+    #
+    # $_[0] = self
+    # $_[1] = callback type
 
-    my($self, $callback) = @ARG;
-    undef;
-    [@{$self->{$callback}}[1 .. $#{$self->{$callback}}]] if
-      defined $self->{$callback}->[1];
+    defined $_[0]->{$_[1]}->[1] ? [@{$_[0]->{$_[1]}}[1 .. $#{$_[0]->{$_[1]}}]]
+	: undef;
+
 } # end Args
 
-sub Delete {
+sub Info {
+
+    # Info() method subclassed by other Watch modules.
+    #
+    # $_[0] = self
+    # @_[1 .. $#_] = optional callback types
+
+    my(%vinfo, @results);
+    my(@info) = (qw/-variable -debug -shadow/);
+    push @info, @_[1 .. $#_] if scalar @_ >= 2;
+    foreach my $type (@info) {
+	push @results, 	sprintf('%-10s: ', substr $type, 1) .
+	    $_[0]->Say($_[0]->{$type});
+	$vinfo{$type} = $_[0]->{$type};
+    }
+    $vinfo{-legible} = [@results];
+    %vinfo;
+
+} # end Info
+
+sub Say {
+
+    # For debugging, mainly.
+    #
+    # $_[0] = self
+    # $_[1] = value
+
+    defined $_[1] ? (ref($_[1]) ne '' ? $_[1] : "'$_[1]'") : "undefined";
+
+} # end Say
+
+sub Unwatch {
 
     # Stop watching a variable by releasing the last reference and untieing it.
     # Update the original variable with its shadow, if appropriate.
+    #
+    # $_[0] = self
 
     my $variable = $_[0]->{-variable};
     my $type = ref $variable;
@@ -308,42 +352,10 @@ sub Delete {
 	untie %$variable;
 	%$variable = %$copy if $shadow;
     } else {
-	croak "Tie::Watch - not a variable reference.";
+	croak "Tie::Watch::Delete() - not a variable reference.";
     }
-} # end Delete
 
-sub Info {
-
-    # Info() method subclassed by other Watch modules.
-
-    my($self) = @ARG;
-    my(%vinfo, @results);
-    push @results, "variable : " . $self->Say($self->{-variable});
-    push @results, "fetch    : " . $self->Say($self->{-fetch});
-    push @results, "store    : " . $self->Say($self->{-store});
-    push @results, "destroy  : " . $self->Say($self->{-destroy});
-    push @results, "debug    : " . $self->Say($self->{-debug});
-    push @results, "shadow   : " . $self->Say($self->{-shadow});
-
-    %vinfo = (
-        -variable => $self->{-variable},
-        -fetch    => $self->{-fetch},
-        -store    => $self->{-store},
-        -destroy  => $self->{-destroy},
-        -debug    => $self->{-debug},
-        -shadow   => $self->{-shadow},
-        -legible  => [@results],
-    );
-    return %vinfo;
-} # end Info
-
-sub Say {
-
-    # For debugging, mainly.
-
-    my($self, $val) = @ARG;
-    defined $val ? (ref($val) ne '' ? $val : "'$val'") : "undefined";
-} # end Say
+} # end Unwatch
 
 # Watch private methods.
 
@@ -351,41 +363,45 @@ sub base_watch {
 
     # Watch base class constructor invoked by other Watch modules.
 
-    my($class, $variable, $fetch, $store, $destroy, $debug, $shadow) = @ARG;
-    my $watch_obj = {
-        -variable => $variable,
-	-fetch    => $fetch,
-	-store    => $store,
-	-destroy  => $destroy,
-	-debug    => $debug,
-	-shadow   => $shadow,
-    }; 
-    bless $watch_obj, $class;
+    my($class, %args) = @_;
+    my $watch_obj = {%args}; 
+    $watch_obj;
+
 } # end base_watch
 
 sub callback {
     
     # Execute a Watch callback, either the default or user specified.
+    # Note that the arguments are those supplied by the tied method,
+    # not those (if any) specified by the user when the watch object
+    # was instantiated.  This is for performance reasons, and why the
+    # Args() method exists.
+    #
+    # $_[0] = self
+    # $_[1] = callback type
+    # $_[2] through $#_ = tied arguments
 
-    my($self, $callback, @args) = @ARG;
-    print "Watch callback $callback:  ARG = ", join(',', @ARG), ".\n" if
-      $self->{-debug};
-    &{$self->{$callback}->[0]} ($self, @args);
+    &{$_[0]->{$_[1]}->[0]} ($_[0], @_[2 .. $#_]);
+
 } # end callback
 
 sub normalize_callbacks {
 
     # Ensure all callbacks are normalized in [\&code, @args] format.
 
+    my($args_ref) = @_;
     my($cb, $ref);
-    foreach $cb (@ARG) {
+    foreach my $arg (keys %$args_ref) {
+	next if $arg =~ /variable|debug|shadow/;
+	$cb = $args_ref->{$arg};
 	$ref = ref $cb;
 	if ($ref =~ /CODE/) {
-	    $cb = [$cb, undef];
+	    $args_ref->{$arg} = [$cb];
 	} elsif ($ref !~ /ARRAY/) {
-	    croak "Tie::Watch:  malformed callback.";
+	    croak "Tie::Watch:  malformed callback $arg=$cb.";
 	}
     }
+
 } # end normalize_callbacks
 
 ###############################################################################
@@ -393,175 +409,276 @@ sub normalize_callbacks {
 package Tie::Watch::Scalar;
 
 use Carp;
-use English;
-@Tie::Watch::Scalar::ISA = qw(Tie::Watch);
+@Tie::Watch::Scalar::ISA = qw/Tie::Watch/;
 
 sub TIESCALAR {
-    my($class, $variable, $fetch, $store, $destroy, $debug, $shadow) = @ARG;
-    my $watch_obj = Tie::Watch->base_watch($variable, $fetch, $store, $destroy,
-					   $debug, $shadow);
+
+    my($class, %args) = @_;
+    my $variable = $args{-variable};
+    my $watch_obj = Tie::Watch->base_watch(%args);
     $watch_obj->{-value} = $$variable;
-    print "WatchScalar new: $variable created, \@ARG=", join(',', @ARG), "!\n"
-      if $watch_obj->{-debug};
+    print "WatchScalar new: $variable created, \@_=", join(',', @_), "!\n"
+	if $watch_obj->{-debug};
     bless $watch_obj, $class;
-}
 
-sub Fetch {shift->{-value}}
+} # end TIESCALAR
 
-sub Info {
-    my($self) = @ARG;
-    my %vinfo = $self->SUPER::Info;
-    push @{$vinfo{-legible}}, "value    : " . $self->Say($self->{-value});
-    $vinfo{-value} = $self->{-value};
-    return %vinfo;
-}
+sub Info {$_[0]->SUPER::Info('-value', @Tie::Watch::scalar_callbacks)}
 
-sub Store {my($self, $new_val) = @ARG; $self->{-value} = $new_val}
+# Default scalar callbacks.
 
-sub DESTROY {
-    my($self) = @ARG;
-    $self->callback(-destroy);
-}
+sub Destroy {undef %{$_[0]}}
+sub Fetch   {$_[0]->{-value}}
+sub Store   {$_[0]->{-value} = $_[1]}
 
-sub FETCH {
-    my($self) = @ARG;
-    $self->callback(-fetch);
-}
+# Scalar access methods.
 
-sub STORE {
-    my($self, $new_val) = @ARG;
-    $self->callback(-store, $new_val);
-}
+sub DESTROY {$_[0]->callback(-destroy)}
+sub FETCH   {$_[0]->callback(-fetch)}
+sub STORE   {$_[0]->callback(-store, $_[1])}
 
 ###############################################################################
 
 package Tie::Watch::Array;
 
 use Carp;
-use English;
-@Tie::Watch::Array::ISA = qw(Tie::Watch);
+@Tie::Watch::Array::ISA = qw/Tie::Watch/;
 
 sub TIEARRAY {
-    my($class, $variable, $fetch, $store, $destroy, $debug, $shadow) = @ARG;
+
+    my($class, %args) = @_;
+    my($variable, $shadow) = @args{-variable, -shadow};
     my @copy = @$variable if $shadow; # make a private copy of user's array
-    my $watch_obj = Tie::Watch->base_watch($variable, $fetch, $store, $destroy,
-					   $debug, $shadow);
-    $watch_obj->{-ptr} = $shadow ? \@copy : [];
-    print "WatchArray new: $variable created, \@ARG=", join(',', @ARG), "!\n"
-      if $watch_obj->{-debug};
+    $args{-ptr} = $shadow ? \@copy : [];
+    my $watch_obj = Tie::Watch->base_watch(%args);
+    print "WatchArray new: $variable created, \@_=", join(',', @_), "!\n"
+	if $watch_obj->{-debug};
     bless $watch_obj, $class;
+
+} # end TIEARRAY
+
+sub Info {$_[0]->SUPER::Info('-ptr', @Tie::Watch::array_callbacks)}
+
+# Default array callbacks.
+
+sub Clear     {$_[0]->{-ptr} = ()}
+sub Destroy   {undef %{$_[0]}}
+sub Extend    {}
+sub Fetch     {$_[0]->{-ptr}->[$_[1]]}
+sub Fetchsize {scalar @{$_[0]->{-ptr}}}
+sub Pop       {pop @{$_[0]->{-ptr}}}
+sub Push      {push @{$_[0]->{-ptr}}, @_[1 .. $#_]}
+sub Shift     {shift @{$_[0]->{-ptr}}}
+sub Splice    {
+    my $n = scalar @_;		# splice() is wierd!
+    return splice @{$_[0]->{-ptr}}, $_[1]                      if $n == 2;
+    return splice @{$_[0]->{-ptr}}, $_[1], $_[2]               if $n == 3;
+    return splice @{$_[0]->{-ptr}}, $_[1], $_[2], @_[3 .. $#_] if $n >= 4;
 }
+sub Store     {$_[0]->{-ptr}->[$_[1]] = $_[2]}
+sub Storesize {$#{@{$_[0]->{-ptr}}} = $_[1] - 1}
+sub Unshift   {unshift @{$_[0]->{-ptr}}, @_[1 .. $#_]}
 
-sub Fetch {shift->{-ptr}->[shift()]}
+# Array access methods.
 
-sub Info {
-    my($self) = @ARG;
-    my %vinfo = $self->SUPER::Info;
-    push @{$vinfo{-legible}}, "ptr      : " . $self->Say($self->{-ptr});
-    $vinfo{-ptr} = $self->{-ptr};
-    return %vinfo;
-}
-
-sub Store {my($self, $key, $new_val) = @ARG; $self->{-ptr}->[$key] = $new_val}
-
-sub DESTROY {
-    my($self) = @ARG;
-    $self->callback(-destroy);
-}
-
-sub FETCH {
-    my($self, $key) = @ARG;
-    $self->callback(-fetch, $key);
-}
-
-sub STORE {
-    my($self, $key, $new_val) = @ARG;
-    $self->callback(-store, $key, $new_val);
-}
+sub CLEAR     {$_[0]->callback(-clear)}
+sub DESTROY   {$_[0]->callback(-destroy)}
+sub EXTEND    {$_[0]->callback(-extend, $_[1])}
+sub FETCH     {$_[0]->callback(-fetch, $_[1])}
+sub FETCHSIZE {$_[0]->callback(-fetchsize)}
+sub POP       {$_[0]->callback('-pop')}
+sub PUSH      {$_[0]->callback('-push', @_[1 .. $#_])}
+sub SHIFT     {$_[0]->callback('-shift')}
+sub SPLICE    {$_[0]->callback('-splice', @_[1 .. $#_])}
+sub STORE     {$_[0]->callback(-store, $_[1], $_[2])}
+sub STORESIZE {$_[0]->callback(-storesize, $_[1])}
+sub UNSHIFT   {$_[0]->callback('-unshift', @_[1 .. $#_])}
 
 ###############################################################################
 
 package Tie::Watch::Hash;
 
 use Carp;
-use English;
-@Tie::Watch::Hash::ISA = qw(Tie::Watch::Array);
+@Tie::Watch::Hash::ISA = qw/Tie::Watch/;
 
 sub TIEHASH {
-    my($class, $variable, $fetch, $store, $destroy, $debug, $shadow,
-       $clear, $delete, $exists, $firstkey, $nextkey) = @ARG;
+
+    my($class, %args) = @_;
+    my($variable, $shadow) = @args{-variable, -shadow};
     my %copy = %$variable if $shadow; # make a private copy of user's hash
-    my $watch_obj = Tie::Watch->base_watch($variable, $fetch, $store, $destroy,
-					   $debug, $shadow);
-    $watch_obj->{-ptr}      = $shadow ? \%copy : {};
-    $watch_obj->{-clear}    = $clear;
-    $watch_obj->{'-delete'} = $delete;
-    $watch_obj->{'-exists'} = $exists;
-    $watch_obj->{-firstkey} = $firstkey;
-    $watch_obj->{-nextkey}  = $nextkey;
-    print "WatchHash new: $variable created, \@ARG=", join(',', @ARG), "!\n"
-      if $watch_obj->{-debug};
+    $args{-ptr} = $shadow ? \%copy : {};
+    my $watch_obj = Tie::Watch->base_watch(%args);
+    print "WatchHash new: $variable created, \@_=", join(',', @_), "!\n"
+	if $watch_obj->{-debug};
     bless $watch_obj, $class;
-}
 
-sub Fetch {shift->{-ptr}->{shift()}}
+} # end TIEHASH
 
-sub Info {
-    my($self) = @ARG;
-    my %vinfo = $self->SUPER::Info;
-    push @{$vinfo{-legible}}, "clear    : " . $self->Say($self->{-clear});
-    push @{$vinfo{-legible}}, "delete   : " . $self->Say($self->{'-delete'});
-    push @{$vinfo{-legible}}, "exists   : " . $self->Say($self->{'-exists'});
-    push @{$vinfo{-legible}}, "firstkey : " . $self->Say($self->{-firstkey});
-    push @{$vinfo{-legible}}, "nextkey  : " . $self->Say($self->{-nextkey});
-    $vinfo{-clear}    = $self->{-clear};
-    $vinfo{'-delete'} = $self->{'-delete'};
-    $vinfo{'exists'}  = $self->{'-exists'};
-    $vinfo{-firstkey} = $self->{-firstkey};
-    $vinfo{-nextkey}  = $self->{-nextkey};
-    return %vinfo;
-}
+sub Info {$_[0]->SUPER::Info('-ptr', @Tie::Watch::hash_callbacks)}
 
-sub Store {my($self, $key, $new_val) = @ARG; $self->{-ptr}->{$key} = $new_val}
+# Default hash callbacks.
 
-sub CLEAR {
-    my($self) = @ARG;
-    $self->callback(-clear);
-}
+sub Clear    {$_[0]->{-ptr} = ()}
+sub Delete   {delete $_[0]->{-ptr}->{$_[1]}}
+sub Destroy  {undef %{$_[0]}}
+sub Exists   {exists $_[0]->{-ptr}->{$_[1]}}
+sub Fetch    {$_[0]->{-ptr}->{$_[1]}}
+sub Firstkey {my $c = keys %{$_[0]->{-ptr}}; each %{$_[0]->{-ptr}}}
+sub Nextkey  {each %{$_[0]->{-ptr}}}
+sub Store    {$_[0]->{-ptr}->{$_[1]} = $_[2]}
 
-sub DELETE {
-    my($self, $key) = @ARG;
-    $self->callback('-delete', $key);
-}
+# Hash access methods.
 
-sub DESTROY {
-    my($self) = @ARG;
-    $self->callback(-destroy);
-}
-
-sub EXISTS {
-    my($self, $key) = @ARG;
-    $self->callback('-exists', $key);
-}
-
-sub FETCH {
-    my($self, $key) = @ARG;
-    $self->callback(-fetch, $key);
-}
-
-sub FIRSTKEY {
-    my($self) = @ARG;
-    $self->callback(-firstkey);
-}
-
-sub NEXTKEY {
-    my($self) = @ARG;
-    $self->callback(-nextkey);
-}
-
-sub STORE {
-    my($self, $key, $new_val) = @ARG;
-    $self->callback(-store, $key, $new_val);
-}
+sub CLEAR    {$_[0]->callback(-clear)}
+sub DELETE   {$_[0]->callback('-delete', $_[1])}
+sub DESTROY  {$_[0]->callback(-destroy)}
+sub EXISTS   {$_[0]->callback('-exists', $_[1])}
+sub FETCH    {$_[0]->callback(-fetch, $_[1])}
+sub FIRSTKEY {$_[0]->callback(-firstkey)}
+sub NEXTKEY  {$_[0]->callback(-nextkey)}
+sub STORE    {$_[0]->callback(-store, $_[1], $_[2])}
 
 1;
+__END__
+#!/usr/local/bin/perl -w
+
+use strict;
+use Tie::Watch;
+use vars '$do_tk';
+BEGIN {
+    $do_tk = 1;
+    eval "use Tk";
+    $do_tk = 0 if $@;
+}
+
+# Complete documentation on Watch is a pod in the module file.  Watch works on
+# plain scalars, arrays, or hashes.  Do *NOT* Watch Tk widgets!  But Watch does
+# work OK with Tk otherwise.
+
+my $demos = 'saht';
+
+my $foo;			# Watch variables
+my @foo;
+my %foo;
+
+my %vinfo;			# variable Watch information
+my $date;			# a changing time
+
+my $w_scalar;			# Watch objects
+my $w_array;
+my $w_hash;
+
+my $fetch_scalar = sub {
+    my($self) = @_;
+    $self->Fetch;
+};
+
+my $store_scalar = sub {
+    my($self, $new_val) = @_;
+    $self->Store(uc $new_val);
+};
+
+my $fetch = sub {
+    my($self, $key) = @_;
+    my $val = $self->Fetch($key);
+    print "In fetch callback, key=$key, val=", $self->Say($val);
+    my $args = $self->Args(-fetch);
+    print ", args=('", join("', '",  @$args), "')" if $args;
+    print ".\n";
+    $val;
+};
+
+my $store = sub {
+    my($self, $key, $new_val) = @_;
+    my $val = $self->Fetch($key);
+    $new_val = uc $new_val;
+    $self->Store($key, $new_val);
+    print "In store callback, key=$key, val=", $self->Say($val), 
+      ", new_val=", $self->Say($new_val);
+    my $args = $self->Args(-store);
+    print ", args=('", join("', '",  @$args), "')" if $args;
+    print ".\n";
+    $new_val;
+};
+
+if ($demos =~ /s/) {
+    chomp($date = `date`); $date = substr $date, 11, 8;
+    $foo='frog';
+    $w_scalar = Tie::Watch->new(
+        -variable => \$foo,
+	-fetch    => $fetch_scalar,
+	-store    => $store_scalar,
+	-destroy  => sub {print "Final value of \$foo=$foo.\n"},
+	-debug    => 1,
+    );
+    $foo = "hello scalar";
+    print "Final value: $foo\n";
+    %vinfo = $w_scalar->Info;
+    print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
+    $w_scalar->Unwatch if $demos !~ /t/;
+    sleep 1;
+}
+
+if ($demos =~ /a/) {
+    print "\n********** Test Watch Array **********\n";
+    chomp($date = `date`); $date = substr $date, 11, 8;
+    $w_array = Tie::Watch->new(
+        -variable => \@foo,
+	-fetch    => $fetch,
+	-store    => [$store, 'array write', $date],
+    );
+    @foo = ("hello", 'array');
+    my($a, $b) = ($foo[0], $foo[1]);
+    print "Final value: $a $b\n";
+    %vinfo = $w_array->Info;
+    print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
+    sleep 1;
+}
+
+if ($demos =~ /h/) {
+    print "\n********** Test Watch Hash **********\n";
+    chomp($date = `date`); $date = substr $date, 11, 8;
+    $w_hash = Tie::Watch->new(
+        -variable => \%foo,
+	-fetch    => [$fetch, 'hash read', $date],
+	-store    => $store,			  
+    );
+    %foo = ('k1' => "hello", 'k2' => 'hash ');
+    my($a, $b) = ($foo{k1}, $foo{k2});
+    print "Final value: $a $b\n";
+    %vinfo = $w_hash->Info;
+    print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
+    foreach (keys %foo) {
+	print "key=$_, value=$foo{$_}.\n";
+    }
+    if (exists $foo{k2}) {
+	print "k2 does exist\n";
+    } else {
+	print "k2 does not exists\n";
+    }
+    delete $foo{k2};
+    if (exists $foo{k2}) {
+	print "k2 does exist\n";
+    } else {
+	print "k2 does not exist\n";
+    }
+    print "keys=", join(', ', keys %foo), ".\n";
+    print "\n";
+}
+
+if ($demos =~ /t/) {
+    die "Cannot run Tk demo if Perl/Tk isn't installed." unless $do_tk;
+    die "Cannot run Tk demo without running scalar demo too." if not defined
+	$w_scalar;
+    die "Cannot run Tk demo unless DISPLAY set." if not defined $ENV{DISPLAY};
+    my $MW = MainWindow->new;
+    my $e = $MW->Entry->pack;
+    $e->insert(0, $foo);
+    $e->bind('<Return>' => sub {$foo = $e->get});
+    $e->focus;
+    my $u = $MW->Button(-text => 'UnWatch $foo', -command => sub {
+	$w_scalar->Unwatch;
+    })->pack;
+    my $l = $MW->Button(-text => 'Quit', -command => \&exit)->pack;
+    &Tk::MainLoop;
+}

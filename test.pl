@@ -1,144 +1,82 @@
-#!/usr/local/bin/perl -w
-
-use English;
-use strict;
-use lib '.';
+#!/usr/local/bin/bin/perl -w
+ 
 use Tie::Watch;
+use vars qw/$watch/;
 
-# Complete documentation on Watch is a pod in the module file.  Watch works on
-# plain scalars, arrays, or hashes.  Do *NOT* Watch Tk widgets!  But Watch does
-# work OK with Tk otherwise.
-#
-# This program demonstrates scalar, array and hash tracing.  Supply a single
-# parameter, "all", to also see a short Tk demonstration.
+print "1..28\n";
 
-my $demos = 'sah';
-$demos = $ARGV[0] if $ARGV[0];
-$demos = 'saht' if $demos eq 'all';
+my $aa = 1;
+$watch = new Tie::Watch(-variable => \$aa);
+$aa = 3;			# test scalar STORE
+print $aa == 3 ? "ok 1\n" : "not ok \n"; # test scalar FETCH
+$watch->Unwatch;
+print $aa == 3 ? "ok 2\n" : "not ok 2\n"; # test -shadow
 
-my $foo;			# Watch variables
-my @foo;
-my %foo;
-
-my %vinfo;			# variable Watch information
-my $date;			# a changing time
-
-my $w_scalar;			# Watch objects
-my $w_array;
-my $w_hash;
-
-my $fetch_scalar = sub {
-    my($self) = @ARG;
-    $self->Fetch;
-};
-
-my $store_scalar = sub {
-    my($self, $new_val) = @ARG;
-    $self->Store(uc $new_val);
-};
-
-my $fetch = sub {
-    my($self, $key) = @ARG;
-    my $val = $self->Fetch($key);
-    print "In fetch callback, key=$key, val=", $self->Say($val);
-    my $args = $self->Args(-fetch);
-    print ", args=('", join("', '",  @$args), "')" if $args;
-    print ".\n";
-    $val;
-};
-
-my $store = sub {
-    my($self, $key, $new_val) = @ARG;
-    my $val = $self->Fetch($key);
-    $new_val = uc $new_val;
-    $self->Store($key, $new_val);
-    print "In store callback, key=$key, val=", $self->Say($val), 
-      ", new_val=", $self->Say($new_val);
-    my $args = $self->Args(-store);
-    print ", args=('", join("', '",  @$args), "')" if $args;
-    print ".\n";
-    $new_val;
-};
-
-if ($demos =~ /s/) {
-    print "\n********** Test Watch Scalar **********\n";
-    chomp($date = `date`); $date = substr $date, 11, 8;
-    $foo='frog';
-    $w_scalar = Tie::Watch->new(
-        -variable => \$foo,
-	-fetch    => $fetch_scalar,
-	-store    => $store_scalar,
-	-destroy  => sub {print "Final value of \$foo=$foo.\n"},
-	-debug    => 1,
-    );
-    $foo = "hello scalar";
-    print "Final value: $foo\n";
-    %vinfo = $w_scalar->Info;
-    print "Watch info :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    $w_scalar->Delete if $demos !~ /t/;
-    sleep 1;
+my %aa = (1,11,2,22);
+$watch = new Tie::Watch(-variable => \%aa);
+$aa{3} = 33;			# test hash STORE
+print $aa{3} == 33 ? "ok 3\n" : "not ok 3\n"; # test hash FETCH
+$watch->Unwatch;
+print $aa{3} == 33 ? "ok 4\n" : "not ok 4\n"; # test -shadow
+$watch = new Tie::Watch(-variable => \%aa);
+print exists $aa{3} ? "ok 5\n" : "not ok 5\n"; # test hash EXISTS
+$d = delete $aa{3};
+print exists $aa{3} ? "not ok 6\n" : "ok 6\n"; # test hash DELETE
+print $d == 33 ? "ok 7\n" : "not ok 7\n";
+$aa{3} = 333; $aa{4} = 444; $aa{5} = 555;
+while ( ($key, $val) = each %aa) {
+    last if $key == 3;
 }
-
-if ($demos =~ /a/) {
-    print "\n********** Test Watch Array **********\n";
-    chomp($date = `date`); $date = substr $date, 11, 8;
-    $w_array = Tie::Watch->new(
-        -variable => \@foo,
-	-fetch    => $fetch,
-	-store    => [$store, 'array write', $date],
-    );
-    @foo = ("hello", 'array');
-    my($a, $b) = ($foo[0], $foo[1]);
-    print "Final value: $a $b\n";
-    %vinfo = $w_array->Info;
-    print "Watch info :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    sleep 1;
+print $val == 333 ? "ok 8\n" : "not ok 8\n"; # test HASH FIRSTKEY
+while ( ($key, $val) = each %aa) {
+    $last_val = $val;
 }
+print $last_val == 555 ? "ok 9\n" : "not ok 9\n"; # test hash NEXTKEY
+($key, $val) = each %aa;
+print $val == 11 ? "ok 10\n" : "not ok 10\n";
+print scalar(keys %aa) == 5 ? "ok 11\n" : "not ok 11\n";
+@aa=();
+print $#aa == -1 ? "ok 12\n" : "not ok 12\n"; # test hash CLEAR
 
-if ($demos =~ /h/) {
-    print "\n********** Test Watch Hash **********\n";
-    chomp($date = `date`); $date = substr $date, 11, 8;
-    $w_hash = Tie::Watch->new(
-        -variable => \%foo,
-	-fetch    => [$fetch, 'hash read', $date],
-	-store    => $store,			  
-    );
-    %foo = ('k1' => "hello", 'k2' => 'hash ');
-    my($a, $b) = ($foo{k1}, $foo{k2});
-    print "Final value: $a $b\n";
-    %vinfo = $w_hash->Info;
-    print "Watch info :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    foreach (keys %foo) {
-	print "key=$ARG, value=$foo{$ARG}.\n";
-    }
-    if (exists $foo{k2}) {
-	print "k2 does exist\n";
-    } else {
-	print "k2 does not exists\n";
-    }
-    delete $foo{k2};
-    if (exists $foo{k2}) {
-	print "k2 does exist\n";
-    } else {
-	print "k2 does not exist\n";
-    }
-    print "keys=", join(', ', keys %foo), ".\n";
-    print "\n";
+my @aa = (1,2);
+$watch = new Tie::Watch(-variable => \@aa);
+$aa[2] = 3;			# test array STORE
+print scalar(@aa) == 3 ? "ok 13\n" : "not ok 13\n"; # test array FETCHSIZE
+print $#aa == 2 ? "ok 14\n" : "not ok 14\n"; # test array FETCHSIZE
+print $aa[2] == 3 ? "ok 15\n" : "not ok 15\n"; # test array FETCH
+$watch->Unwatch;
+print $aa[2] == 3 ? "ok 16\n" : "not ok 16\n"; # test -shadow
+$watch = new Tie::Watch(-variable => \@aa);
+push @aa, ('frog', 'cow');	# test array PUSH
+$#aa = 5;			# extend, fill with 1 undef
+my $pop = pop @aa;		# get undef
+print defined($pop) ? "not ok 17\n" : "ok 17\n";
+$pop = pop @aa;			# should be 'cow'
+print $pop eq 'cow' ? "ok 18\n" : "not ok 18\n"; # test array POP
+unshift @aa, (-2, -1, 0);
+print scalar(@aa) == 7 ? "ok 19\n" : "not ok 19\n"; # test array UNSHIFT
+my $shift = shift @aa;
+print $shift == -2 ? "ok 20\n" : "not ok 20\n";	# test array SHIFT
+@splice = splice @aa, 1, 1, (-0.5, 0, +0.5);
+print $splice[0] == 0 ? "ok 21\n" : "not ok 21\n"; # test array SPLICE
+@should_be = (-1, -0.5, 0, 0.5, 1, 2, 3, 'frog');
+$ok = 1;
+for($i = 0; $i <= $#aa; $i++) {
+    next if $aa[$i] eq $should_be[$i];
+    $ok = 0;
 }
-__END__
+print $ok ? "ok 22\n" : "not ok 22\n";
+@splice = splice @aa, 2,2;
+$ok = ($splice[0] == 0 and $splice[1] == 0.5);
+print $ok ? "ok 23\n" : "not ok 23\n";
+@splice = splice @aa, 4,1,(qw/a b c/);
+$ok = ($aa[3] == 2 and join('',@aa[4..$#aa]) eq 'abcfrog');
+print $ok ? "ok 24\n" : "not ok 24\n";
+print $splice[0] == 3 ? "ok 25\n" : "not ok 25\n";
+@splice = splice @aa, 5;
+print join('',@splice) eq 'bcfrog' ? "ok 26\n" : "not ok 26\n";
+%aa = ();
+print scalar(keys %aa) == 0 ? "ok 27\n" : "not ok 27\n"; # test array CLEAR
+$watch->Unwatch;
+print defined($watch) ? "not ok 28\n" : "ok 28\n";
 
-if ($demos =~ /t/) {
-    die "Cannot run Tk demo without running scalar demo too." if not 
-      defined $w_scalar;
-    use Tk;
-    my $MW = MainWindow->new;
-    my $e = $MW->Entry->pack;
-    $e->insert(0, $foo);
-    $e->bind('<Return>' => sub {$foo = $e->get});
-    $e->focus;
-    my $u = $MW->Button(-text => 'UnWatch $foo', -command => sub {
-	$w_scalar->Delete;
-    })->pack;
-    my $l = $MW->Button(-text => 'Quit', -command => \&exit)->pack;
-    MainLoop;
-}

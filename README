@@ -18,13 +18,15 @@ Do:
    make test
    make install
 
-If you have Tk installed, delete the __END__ statement from test.pl and
-execute "test.pl all" to see a Tk watchpoint example.
+If you have Tk installed a short Tk demo will also run.
 
-BUGS:  tied arrays are incomplete, thus so are watched arrays.
+This version supports tied arrays and REQUIRES Perl 5.004_57 or
+higher.  Also, the old Delete() method has been renamed Unwatch()
+since it conflicted with the builtin delete() function.
 
+BUGS:  not aware of any.
 
 Steve Lidie
-lusol@Lehigh.EDU
+Stephen.O.Lidie@Lehigh.EDU
 
-97/10/03
+98/02/16
