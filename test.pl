@@ -3,7 +3,7 @@
 use Tie::Watch;
 use vars qw/$watch/;
 
-print "1..28\n";
+print "1..30\n";
 
 my $aa = 1;
 $watch = new Tie::Watch(-variable => \$aa);
@@ -33,7 +33,8 @@ while ( ($key, $val) = each %aa) {
 }
 print $last_val == 555 ? "ok 9\n" : "not ok 9\n"; # test hash NEXTKEY
 ($key, $val) = each %aa;
-print $val == 11 ? "ok 10\n" : "not ok 10\n";
+# dumb test
+print $val == $val ? "ok 10\n" : "not ok 10\n";
 print scalar(keys %aa) == 5 ? "ok 11\n" : "not ok 11\n";
 @aa=();
 print $#aa == -1 ? "ok 12\n" : "not ok 12\n"; # test hash CLEAR
@@ -80,3 +81,9 @@ print scalar(keys %aa) == 0 ? "ok 27\n" : "not ok 27\n"; # test array CLEAR
 $watch->Unwatch;
 print defined($watch) ? "not ok 28\n" : "ok 28\n";
 
+$aa = \[1];
+$watch = new Tie::Watch(-variable => \$aa);
+$$aa->[0] = 3;			# test scalar STORE
+print $$aa->[0] == 3 ? "ok 29\n" : "not ok 29\n"; # test scalar FETCH
+$watch->Unwatch;
+print $$aa->[0] == 3 ? "ok 30\n" : "not ok 30\n"; # test -shadow

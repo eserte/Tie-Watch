@@ -1,4 +1,4 @@
-$Tie::Watch::VERSION = '1.0';
+$Tie::Watch::VERSION = '1.1';
 
 package Tie::Watch;
 
@@ -219,16 +219,20 @@ Stephen.O.Lidie@Lehigh.EDU
  . Version 1.0, for Perl 5.005_03, update Makefile.PL for ActiveState, and
    add two examples (one for Perl/Tk).
 
+ sol0@lehigh.edu, Lehigh University Computing Center, 2003/06/07
+ . Version 1.1, for Perl 5.8, can trace a reference now, patch from Slaven
+   Rezic.
+
 =head1 COPYRIGHT
 
-Copyright (C) 1996 - 1999 Stephen O. Lidie. All rights reserved.
+Copyright (C) 1996 - 2003 Stephen O. Lidie. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
 
 =cut
 
-use 5.004_57;
+use 5.004_57;;
 use Carp;
 use strict;
 use subs qw/normalize_callbacks/;
@@ -254,7 +258,7 @@ sub new {
     croak "Tie::Watch::new(): -variable is required." if not defined $variable;
 
     my($type, $watch_obj) = (ref $variable, undef);
-    if ($type =~ /SCALAR/) {
+    if ($type =~ /(SCALAR|REF)/) {
 	@arg_defaults{@scalar_callbacks} = (
 	    [\&Tie::Watch::Scalar::Destroy],  [\&Tie::Watch::Scalar::Fetch],
 	    [\&Tie::Watch::Scalar::Store]);
@@ -281,7 +285,7 @@ sub new {
     @ahsh{@margs} = @arg_defaults{@margs}; # fill in missing values
     normalize_callbacks \%ahsh;
 
-    if ($type =~ /SCALAR/) {
+    if ($type =~ /(SCALAR|REF)/) {
         $watch_obj = tie $$variable, 'Tie::Watch::Scalar', %ahsh;
     } elsif ($type =~ /ARRAY/) {
         $watch_obj = tie @$variable, 'Tie::Watch::Array',  %ahsh;
@@ -344,10 +348,10 @@ sub Unwatch {
 
     my $variable = $_[0]->{-variable};
     my $type = ref $variable;
-    my $copy = $_[0]->{-ptr} if $type !~ /SCALAR/;
+    my $copy = $_[0]->{-ptr} if $type !~ /(SCALAR|REF)/;
     my $shadow = $_[0]->{-shadow};
     undef $_[0];
-    if ($type =~ /SCALAR/) {
+    if ($type =~ /(SCALAR|REF)/) {
 	untie $$variable;
     } elsif ($type =~ /ARRAY/) {
 	untie @$variable;
