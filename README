@@ -1,5 +1,5 @@
 
-			   Tie::Watch version 0.93
+			   Tie::Watch version 0.94
 
 	An object oriented interface to the Perl builtin tie(), that allows a
 watchpoint to be placed on any Perl variable.  A watchpoint is simply a
@@ -10,7 +10,7 @@ both.
 
  . alter a variable's value
  . prevent a variable's value from being changed
- . invoke a Perl/Tk callback
+ . invoke a Perl/Tk callback when a variable changes
  . trace references to a variable
 
 Do:
@@ -23,4 +23,4 @@ Do:
 Steve Lidie
 lusol@Lehigh.EDU
 
-96/06/14
+96/07/12
