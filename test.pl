@@ -48,11 +48,12 @@ my $fetch = sub {
 };
 
 my $store = sub {
-    my($self, $key, $new_val, $args) = @ARG;
+    my($self, $key, $new_val) = @ARG;
     my $val = $self->Fetch($key);
     $new_val = uc $new_val;
     $self->Store($key, $new_val);
-    print "In store callback, key=$key, val=", $self->Say($val), ", new_val=", $self->Say($new_val);
+    print "In store callback, key=$key, val=", $self->Say($val), 
+      ", new_val=", $self->Say($new_val);
     my $args = $self->Args(-store);
     print ", args=('", join("', '",  @{$args}), "')" if $args;
     print ".\n";
@@ -60,52 +61,53 @@ my $store = sub {
 };
 
 if ($demos =~ /s/) {
-    print "\n********** Test Watch Scalar:\n";
+    print "\n********** Test Watch Scalar **********\n";
     chomp($date = `date`); $date = substr $date, 11, 8;
     $foo='frog';
     $w_scalar = Tie::Watch->new(
-				-variable => \$foo,
-				-fetch    => $fetch_scalar,
-				-store    => $store_scalar,
-				-destroy  => sub {print "Final value of \$foo=$foo.\n"},
-				-debug    => 1,
-				);
+        -variable => \$foo,
+	-fetch    => $fetch_scalar,
+	-store    => $store_scalar,
+	-destroy  => sub {print "Final value of \$foo=$foo.\n"},
+	-debug    => 1,
+    );
     $foo = "hello scalar";
-    print $foo, "\n";
+    print "Final value: $foo\n";
     %vinfo = $w_scalar->Info;
-    print "vinfo:\n", join("\n", @{$vinfo{-legible}}), "\n";
+    print "Watch info :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
     $w_scalar->Delete if $demos !~ /t/;
+    sleep 1;
 }
 
 if ($demos =~ /a/) {
-    print "\n********** Test Watch Array:\n";
+    print "\n********** Test Watch Array **********\n";
     chomp($date = `date`); $date = substr $date, 11, 8;
     $w_array = Tie::Watch->new(
-			       -variable => \@foo,
-			       -fetch    => $fetch,
-			       -store    => [$store, 'array write', $date],
-			       );
+        -variable => \@foo,
+	-fetch    => $fetch,
+	-store    => [$store, 'array write', $date],
+    );
     @foo = ("hello", 'array');
     my($a, $b) = ($foo[0], $foo[1]);
-    print $a, ' ', $b, "\n";
+    print "Final value: $a $b\n";
     %vinfo = $w_array->Info;
-    print "vinfo:\n", join("\n", @{$vinfo{-legible}}), "\n";
+    print "Watch info :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
     sleep 1;
 }
 
 if ($demos =~ /h/) {
-    print "\n********** Test Watch Hash:\n";
+    print "\n********** Test Watch Hash **********\n";
     chomp($date = `date`); $date = substr $date, 11, 8;
     $w_hash = Tie::Watch->new(
-			      -variable => \%foo,
-			      -fetch    => [$fetch, 'hash read', $date],			  
-			      -store    => $store,			  
-			      );
+        -variable => \%foo,
+	-fetch    => [$fetch, 'hash read', $date],
+	-store    => $store,			  
+    );
     %foo = ('k1' => "hello", 'k2' => 'hash ');
     my($a, $b) = ($foo{k1}, $foo{k2});
-    print $a, ' ', $b, "\n";
+    print "Final value: $a $b\n";
     %vinfo = $w_hash->Info;
-    print "vinfo:\n", join("\n", @{$vinfo{-legible}}), "\n";
+    print "Watch info :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
     foreach (keys %foo) {
 	print "key=$ARG, value=$foo{$ARG}.\n";
     }
@@ -125,7 +127,8 @@ if ($demos =~ /h/) {
 }
 
 if ($demos =~ /t/) {
-    die "Cannot run Tk demo without running scalar demo too." if not defined $w_scalar;
+    die "Cannot run Tk demo without running scalar demo too." if not 
+      defined $w_scalar;
     use Tk;
     my $MW = MainWindow->new;
     my $e = $MW->Entry->pack;

@@ -1,7 +1,7 @@
 use ExtUtils::MakeMaker;
 use Config;
 
-$Version = '0.93';
+$Version = '0.95';
 
 WriteMakefile(
     'NAME'        => 'Tie::Watch',
