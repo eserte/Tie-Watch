@@ -21,8 +21,10 @@ Do:
 If you have Tk installed, delete the __END__ statement from test.pl and
 execute "test.pl all" to see a Tk watchpoint example.
 
+BUGS:  tied arrays are incomplete, thus so are watched arrays.
+
 
 Steve Lidie
 lusol@Lehigh.EDU
 
-97/01/11
+97/10/03

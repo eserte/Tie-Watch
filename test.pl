@@ -42,7 +42,7 @@ my $fetch = sub {
     my $val = $self->Fetch($key);
     print "In fetch callback, key=$key, val=", $self->Say($val);
     my $args = $self->Args(-fetch);
-    print ", args=('", join("', '",  @{$args}), "')" if $args;
+    print ", args=('", join("', '",  @$args), "')" if $args;
     print ".\n";
     $val;
 };
@@ -55,7 +55,7 @@ my $store = sub {
     print "In store callback, key=$key, val=", $self->Say($val), 
       ", new_val=", $self->Say($new_val);
     my $args = $self->Args(-store);
-    print ", args=('", join("', '",  @{$args}), "')" if $args;
+    print ", args=('", join("', '",  @$args), "')" if $args;
     print ".\n";
     $new_val;
 };
