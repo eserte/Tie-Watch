@@ -73,7 +73,7 @@ if ($demos =~ /s/) {
     print "Final value: $foo\n";
     %vinfo = $w_scalar->Info;
     print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
-    $w_scalar->Unwatch if $demos !~ /t/;
+    $w_scalar->Unwatch;
     sleep 1;
 }
 
@@ -90,6 +90,7 @@ if ($demos =~ /a/) {
     print "Final value: $a $b\n";
     %vinfo = $w_array->Info;
     print "Watch info  :\n  ", join("\n  ", @{$vinfo{-legible}}), "\n";
+    $w_array->Unwatch;
     sleep 1;
 }
 
@@ -122,8 +123,7 @@ if ($demos =~ /h/) {
     }
     print "keys=", join(', ', keys %foo), ".\n";
     print "\n";
+    $w_hash->Unwatch
 }
 
-if ($demos =~ /t/) {
-    warn "For a Tk example, run tktie.";
-}
+print "For a Tk example, run tktie.\n";

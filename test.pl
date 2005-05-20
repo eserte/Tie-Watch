@@ -3,7 +3,7 @@
 use Tie::Watch;
 use vars qw/$watch/;
 
-print "1..30\n";
+print "1..33\n";
 
 my $aa = 1;
 $watch = new Tie::Watch(-variable => \$aa);
@@ -67,23 +67,33 @@ for($i = 0; $i <= $#aa; $i++) {
     $ok = 0;
 }
 print $ok ? "ok 22\n" : "not ok 22\n";
+my $delete = delete $aa[$#aa];
+$ok = $delete eq 'frog';
+print $ok ? "ok 23\n" : "not ok 23: array delete() failure\n";
+$aa[ $#aa + 1 ] = 'frog';
+$delete = delete $aa[5];
+$ok = $delete == 2;
+print $ok ? "ok 24\n" : "not ok 24: array delete failure\n";
+$aa[5] = $delete;
+my $exists = exists $aa[$#aa];
+print $exists ? "ok 25\n" : "not ok 25: array exists() failure\n";
 @splice = splice @aa, 2,2;
 $ok = ($splice[0] == 0 and $splice[1] == 0.5);
-print $ok ? "ok 23\n" : "not ok 23\n";
+print $ok ? "ok 26\n" : "not ok 26\n";
 @splice = splice @aa, 4,1,(qw/a b c/);
 $ok = ($aa[3] == 2 and join('',@aa[4..$#aa]) eq 'abcfrog');
-print $ok ? "ok 24\n" : "not ok 24\n";
-print $splice[0] == 3 ? "ok 25\n" : "not ok 25\n";
+print $ok ? "ok 27\n" : "not ok 27\n";
+print $splice[0] == 3 ? "ok 28\n" : "not ok 28\n";
 @splice = splice @aa, 5;
-print join('',@splice) eq 'bcfrog' ? "ok 26\n" : "not ok 26\n";
+print join('',@splice) eq 'bcfrog' ? "ok 29\n" : "not ok 29\n";
 %aa = ();
-print scalar(keys %aa) == 0 ? "ok 27\n" : "not ok 27\n"; # test array CLEAR
+print scalar(keys %aa) == 0 ? "ok 30\n" : "not ok 30\n"; # test array CLEAR
 $watch->Unwatch;
-print defined($watch) ? "not ok 28\n" : "ok 28\n";
+print defined($watch) ? "not ok 31\n" : "ok 31\n";
 
 $aa = \[1];
 $watch = new Tie::Watch(-variable => \$aa);
 $$aa->[0] = 3;			# test scalar STORE
-print $$aa->[0] == 3 ? "ok 29\n" : "not ok 29\n"; # test scalar FETCH
+print $$aa->[0] == 3 ? "ok 32\n" : "not ok 32\n"; # test scalar FETCH
 $watch->Unwatch;
-print $$aa->[0] == 3 ? "ok 30\n" : "not ok 30\n"; # test -shadow
+print $$aa->[0] == 3 ? "ok 33\n" : "not ok 33\n"; # test -shadow
