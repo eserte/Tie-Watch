@@ -239,6 +239,7 @@ the same terms as Perl itself.
 
 use 5.004_57;;
 use Carp;
+use Scalar::Util qw(reftype);
 use strict;
 use subs qw/normalize_callbacks/;
 use vars qw/@array_callbacks @hash_callbacks @scalar_callbacks/;
@@ -263,7 +264,7 @@ sub new {
     my $variable = $args{-variable};
     croak "Tie::Watch::new(): -variable is required." if not defined $variable;
 
-    my($type, $watch_obj) = (ref $variable, undef);
+    my($type, $watch_obj) = (reftype $variable, undef);
     if ($type =~ /(SCALAR|REF)/) {
 	@arg_defaults{@scalar_callbacks} = (
 	    [\&Tie::Watch::Scalar::Destroy],  [\&Tie::Watch::Scalar::Fetch],

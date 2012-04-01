@@ -14,7 +14,11 @@ EOF
 
 WriteMakefile(
     'NAME'         => 'Tie::Watch',
-    'VERSION_FROM' => 'Watch.pm',
+    'VERSION_FROM' => 'lib/Tie/Watch.pm',
+    'PREREQ_PM'    => {
+        'Test::More'    => 0.47,
+        'Scalar::Util'  => 0,
+    },
     ($] >= 5.005 ?
        (ABSTRACT   => 'Place watchpoints on Perl (and Tk) variables',
         AUTHOR     => 'Steve Lidie (Stephen.O.Lidie@Lehigh.EDU)') : ()),

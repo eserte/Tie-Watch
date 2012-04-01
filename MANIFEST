@@ -1,7 +1,8 @@
-MANIFEST
-Makefile.PL
-README
-Watch.pm
-test.pl
-examples/verbose
 examples/tktie
+examples/verbose
+lib/Tie/Watch.pm
+Makefile.PL
+MANIFEST
+README
+t/object.t
+t/watch.t
